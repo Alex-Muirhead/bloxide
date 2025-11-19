@@ -166,6 +166,26 @@ pub fn heat_transfer(z: State, pm: &Parameters) -> f64 {
     return qw;
 }
 
+pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
+/*
+    The enthlpy the gas reaches after being stagnated in the boundary
+    layer. Anderson calls this h_aw, and this expression is equation 6.88.
+*/
+    return pm.h_e + 0.5*pm.u_e*pm.u_e*f64::sqrt(pm.Pr);
+}
+
+pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
+/*
+    Return pieces needed for equation 6.88 from Anderson. This may
+    be useful for material response codes that need to model a
+    changing wall temperature.
+*/
+    let qw = heat_transfer(z,pm);
+    let hr = recovery_enthalpy(z,pm);
+    let CH = qw/((hr-pm.h_wall)*pm.rho_e*pm.u_e);
+    return CH;
+}
+
 pub fn boundary_layer_size(states: &Vec<State>) -> Option<f64> {
 /*
     Use 99.9% of the freestream velocity to get the BL size.
@@ -221,7 +241,7 @@ pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State> {
         if iterations>100 { panic!("Too many iterations of newton solve"); }
     }
 
-    println!("Solved fdd {:#?} gd {:#?} in {:?} iters", fdd, gd, iterations);
+    println!("Solved boundary layer in {:?} iters", iterations);
     let wall_state_final =  State::wall_state(fdd, gd, pm.h_wall, pm.h_e);
     let states = integrate_through_bl(wall_state_final, &pm);
     return states;
@@ -268,7 +288,7 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State> {
         if iterations>100 { panic!("Too many iterations of newton solve"); }
     }
 
-    println!("Solved fdd {:#?} g {:#?} in {:?} iters", fdd, g, iterations);
+    println!("Solved adiabatic boundary layer in {:?} iters", iterations);
     let wall_state_final =  State::adiabatic_wall_state(fdd, g);
     let states = integrate_through_bl(wall_state_final, &pm);
     return states;

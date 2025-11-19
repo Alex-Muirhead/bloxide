@@ -23,7 +23,6 @@ Build the code:
 
 This should output some details about the boundary layer as well as a file called cold.dat which has the entire profile saved in it.
 
-    bloxide: A compressible boundary layer analysis code.
     Config {
         R: 287.1,
         gamma: 1.4,
@@ -34,12 +33,19 @@ This should output some details about the boundary layer as well as a file calle
         T_wall: 269.5,
         x: 0.5,
     }
-    Solved fdd 0.5013822034038323 gd -0.0363666169277437 in 5 iters
-    Skin Friction:  5.05226 N/m2
-    Heat Transfer : -0.00927 W/cm2
-    99.9% BL size : 2.77701 mm
-    Rex: 2.99296 million   Ret: 16622.97552
-    Solved fdd 0.4988390188851437 g 2.411558697875749 in 5 iters
+    Solved boundary layer in 5 iters
+    Skin Friction:   5.05226 N/m2
+    Heat Transfer:   -0.00927 W/cm2
+    99.9% BL size:   2.77701 mm
+    Reynolds Number: 2.99296 million (x)
+    Reynolds Number: 16622.98 (BL thickness)
+    
+    Freestream cp:     1004.85 J/kg
+    Wall rhoe*ue*CH:   1.1271221e-2 kg/m2/s
+    Heat Transfer CH:  2.5126940e-4
+    Recovery Enthalpy: 2.6257857e-1 MJ/kg
+    
+    Solved adiabatic boundary layer in 5 iters
     Adiabatic Wall Temp: 260.68950 K
     Done.
 

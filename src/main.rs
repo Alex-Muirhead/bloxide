@@ -15,7 +15,7 @@ use std::env;
 
 use bloxide::config::{read_config_file};
 use bloxide::parameters::{Parameters};
-use bloxide::{solve_boundary_layer, skin_friction, heat_transfer, boundary_layer_size, write_dat_file, reynolds_number, solve_adiabatic_boundary_layer};
+use bloxide::*;
 
 fn main() {
     println!("bloxide: A compressible boundary layer analysis code.");
@@ -37,10 +37,19 @@ fn main() {
     let Rex = reynolds_number(pm.rho_e, pm.u_e, pm.mu_e, pm.x);
     let Ret = reynolds_number(pm.rho_e, pm.u_e, pm.mu_e, ybl);
 
-    println!("Skin Friction:  {:5.5} N/m2", tauw);
-    println!("Heat Transfer : {:5.5} W/cm2", qw/1e4);
-    println!("99.9% BL size : {:5.5} mm", ybl*1000.0);
-    println!("Rex: {:5.5} million   Ret: {:5.5}", Rex/1e6, Ret);
+    println!("Skin Friction:   {:5.5} N/m2", tauw);
+    println!("Heat Transfer:   {:5.5} W/cm2", qw/1e4);
+    println!("99.9% BL size:   {:5.5} mm", ybl*1000.0);
+    println!("Reynolds Number: {:5.5} million (x)", Rex/1e6);
+    println!("Reynolds Number: {:5.2} (BL thickness)\n", Ret);
+
+    let hr = recovery_enthalpy(state_initial, &pm);
+    let CH = heat_transfer_coefficient(state_initial, &pm);
+    println!("Freestream cp:     {:7.2} J/kg", pm.C_p);
+    println!("Wall rhoe*ue*CH:   {:7.7e} kg/m2/s", pm.rho_e*pm.u_e*CH);
+    println!("Heat Transfer CH:  {:7.7e}", CH);
+    println!("Recovery Enthalpy: {:7.7e} MJ/kg", hr/1e6);
+    println!("");
 
     let adiabatic_states = solve_adiabatic_boundary_layer(&pm);
     let adiabatic_state_initial = adiabatic_states[0];
