@@ -48,21 +48,21 @@ impl Parameters {
 
         let xi = rho_e * u_e * mu_e * x;
         Self {
-            R: R,
-            gamma: gamma,
-            Pr: Pr,
-            C_p: C_p,
-            p_e: p_e,
-            T_e: T_e,
-            rho_e: rho_e,
-            h_e: h_e,
-            mu_e: mu_e,
-            u_e: u_e,
-            xi: xi,
-            x: x,
-            k_e: k_e,
-            T_wall: T_wall,
-            h_wall: h_wall,
+            R,
+            gamma,
+            Pr,
+            C_p,
+            p_e,
+            T_e,
+            rho_e,
+            h_e,
+            mu_e,
+            u_e,
+            xi,
+            x,
+            k_e,
+            T_wall,
+            h_wall,
         }
     }
 }

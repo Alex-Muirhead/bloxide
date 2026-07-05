@@ -51,7 +51,7 @@ fn main() {
     println!("Wall rhoe*ue*CH:   {:7.7e} kg/m2/s", pm.rho_e * pm.u_e * CH);
     println!("Heat Transfer CH:  {:7.7e}", CH);
     println!("Recovery Enthalpy: {:7.7e} J/kg", hr);
-    println!("");
+    println!();
 
     let adiabatic_states = solve_adiabatic_boundary_layer(&pm);
     let adiabatic_state_initial = adiabatic_states[0];

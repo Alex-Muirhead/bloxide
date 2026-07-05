@@ -33,14 +33,14 @@ fn coerce_to_f64(node: Yaml) -> f64 {
     */
     let val = node.as_f64();
     match val {
-        Some(f64) => return val.unwrap(),
-        None => return node.as_i64().expect("Failed to parse config file.") as f64,
+        Some(f64) => val.unwrap(),
+        None => node.as_i64().expect("Failed to parse config file.") as f64,
     }
 }
 
 pub fn read_config_file(filename: &str) -> Config {
     let mut f =
-        File::open(filename).expect(format!("Unable to open yaml file {}", filename).as_str());
+        File::open(filename).unwrap_or_else(|_| panic!("Unable to open yaml file {}", filename));
     let mut buffer = String::new();
     f.read_to_string(&mut buffer)
         .expect("Unable to parse file to string");
@@ -48,7 +48,8 @@ pub fn read_config_file(filename: &str) -> Config {
     let pages = YamlLoader::load_from_str(buffer.as_str()).unwrap();
     let cfg = &pages[0];
 
-    let config = Config {
+    
+    Config {
         R: coerce_to_f64(cfg["R"].clone()),
         gamma: coerce_to_f64(cfg["gamma"].clone()),
         Pr: coerce_to_f64(cfg["Pr"].clone()),
@@ -57,6 +58,5 @@ pub fn read_config_file(filename: &str) -> Config {
         T_e: coerce_to_f64(cfg["T_e"].clone()),
         T_wall: coerce_to_f64(cfg["T_wall"].clone()),
         x: coerce_to_f64(cfg["x"].clone()),
-    };
-    return config;
+    }
 }

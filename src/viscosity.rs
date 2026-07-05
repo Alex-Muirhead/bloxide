@@ -17,7 +17,7 @@ where
     T: Cplx<T>,
     f64: Mxd<T>,
 {
-    return MU_REF * ComplexFloat::sqrt(TEMP / T_REF) * (TEMP / T_REF) * (T_REF + S) / (TEMP + S);
+    MU_REF * ComplexFloat::sqrt(TEMP / T_REF) * (TEMP / T_REF) * (T_REF + S) / (TEMP + S)
 }
 
 pub fn sutherland_mu_derivative<T: ComplexFloat>(TEMP: T) -> T
@@ -25,6 +25,6 @@ where
     T: Cplx<T>,
     f64: Mxd<T>,
 {
-    return MU_REF * (T_REF + S) * ComplexFloat::sqrt(TEMP / T_REF) * (3.0 * S + TEMP)
-        / (2.0 * T_REF * (S + TEMP) * (S + TEMP));
+    MU_REF * (T_REF + S) * ComplexFloat::sqrt(TEMP / T_REF) * (3.0 * S + TEMP)
+        / (2.0 * T_REF * (S + TEMP) * (S + TEMP))
 }
