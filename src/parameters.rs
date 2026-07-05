@@ -4,8 +4,8 @@
     @author: Nick Gibbons
 */
 
-use crate::config::{Config};
-use crate::viscosity::{sutherland_mu};
+use crate::config::Config;
+use crate::viscosity::sutherland_mu;
 
 #[derive(Clone, Copy)]
 pub struct Parameters {
@@ -26,25 +26,25 @@ pub struct Parameters {
     pub h_wall: f64,
 }
 
-impl Parameters{
+impl Parameters {
     pub fn new(config: &Config) -> Self {
-        let R     = config.R;
+        let R = config.R;
         let gamma = config.gamma;
-        let Pr    = config.Pr;
+        let Pr = config.Pr;
 
         let p_e = config.p_e;
         let u_e = config.u_e;
         let T_e = config.T_e;
         let T_wall = config.T_wall;
-        let x = config.x;  // metres
+        let x = config.x; // metres
 
-        let C_p = gamma/(gamma-1.0)*R;
-        let h_e = C_p*T_e;
-        let rho_e = p_e/(R*T_e);
+        let C_p = gamma / (gamma - 1.0) * R;
+        let h_e = C_p * T_e;
+        let rho_e = p_e / (R * T_e);
         let mu_e = sutherland_mu(T_e);
 
-        let k_e = mu_e*C_p/Pr;
-        let h_wall = C_p*T_wall;
+        let k_e = mu_e * C_p / Pr;
+        let h_wall = C_p * T_wall;
 
         let xi = rho_e * u_e * mu_e * x;
         Self {
