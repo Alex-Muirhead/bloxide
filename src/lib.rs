@@ -69,21 +69,21 @@ pub fn rkf45_step(
     (t0 + h, y1, err)
 }
 
-pub fn soft_max<T: ComplexFloat>(a: T, b: f64) -> T
+pub fn soft_max<T>(a: T, b: f64) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     let da = a - b;
     let scale = 0.5 * (a + b);
     let eps = 1e-3 * scale + 1e-3;
-    
+
     scale + 0.5 * ComplexFloat::sqrt(da * da + eps * eps)
 }
 
-pub fn soft_max_derivative<T: ComplexFloat>(a: T, b: f64) -> T
+pub fn soft_max_derivative<T>(a: T, b: f64) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     let da = a - b;
@@ -93,9 +93,9 @@ where
     0.5 + 0.25 / sqrtval * (2.0 * da + 2.0 * eps * 1e-3 / 2.0)
 }
 
-pub fn density_viscosity_product<T: ComplexFloat>(g: T, pm: &Parameters) -> T
+pub fn density_viscosity_product<T>(g: T, pm: &Parameters) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     /*
@@ -108,21 +108,21 @@ where
     rho * mu / (pm.rho_e * pm.mu_e)
 }
 
-pub fn density_viscosity_product_derivative2<T: ComplexFloat>(g: T, pm: &Parameters) -> T
+pub fn density_viscosity_product_derivative2<T>(g: T, pm: &Parameters) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     let deltag = 0.0001 * g; // something not too big, not too small
     let C0 = density_viscosity_product(g, pm);
     let C1 = density_viscosity_product(g + deltag, pm);
-    
+
     (C1 - C0) / deltag
 }
 
-pub fn density_viscosity_product_derivative<T: ComplexFloat>(g: T, pm: &Parameters) -> T
+pub fn density_viscosity_product_derivative<T>(g: T, pm: &Parameters) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     let Temp = g * pm.h_e / pm.C_p;
@@ -176,9 +176,9 @@ pub fn integrate_through_bl(state0: State, pm: &Parameters) -> Vec<State> {
     let mut eta0 = 0.0;
     let eta_final = 5.0;
     let deta = (eta_final - eta0) / (NSTEPS as f64);
-    let mut z0 = state0.clone();
+    let mut z0 = state0;
     let mut zs = Vec::with_capacity(NSTEPS + 1);
-    zs.push(z0.clone());
+    zs.push(z0);
 
     for step in 0..NSTEPS {
         let (eta1, z1, _err) = rkf45_step(self_similar_ode, eta0, deta, z0, pm);
@@ -188,7 +188,7 @@ pub fn integrate_through_bl(state0: State, pm: &Parameters) -> Vec<State> {
         //let softTi = soft_max(Ti, 60.0);
         //println!("    step {:?}: [{:?},{:?},{:?},{:?},{:?},{:?}] T: {:?} ({:?})", step, z0.f.re, z0.fd.re, z0.fdd.re, z0.g.re, z0.gd.re, z0.y.re, Ti, softTi);
         //println!("           im: [{:?},{:?},{:?},{:?},{:?},{:?}] ", z0.f.im, z0.fd.im, z0.fdd.im, z0.g.im, z0.gd.im, z0.y.im);
-        zs.push(z0.clone())
+        zs.push(z0)
     }
 
     zs
@@ -202,7 +202,7 @@ pub fn skin_friction(z: State, pm: &Parameters) -> f64 {
     let fddw = z.fdd.re;
     let Rex = pm.rho_e * pm.u_e / pm.mu_e * pm.x;
     let cf = f64::sqrt(2.0) * rhomuw_on_rhomue * fddw / f64::sqrt(Rex);
-    
+
     0.5 * cf * pm.rho_e * pm.u_e * pm.u_e
 }
 
@@ -213,9 +213,8 @@ pub fn heat_transfer(z: State, pm: &Parameters) -> f64 {
     let rhomuw_on_rhomue = density_viscosity_product(z.g.re, pm);
     let gdw = z.gd.re;
     let Rex = pm.rho_e * pm.u_e / pm.mu_e * pm.x;
-    
-    pm.u_e * pm.rho_e / f64::sqrt(2.0) / pm.Pr * rhomuw_on_rhomue * pm.h_e * gdw
-        / f64::sqrt(Rex)
+
+    pm.u_e * pm.rho_e / f64::sqrt(2.0) / pm.Pr * rhomuw_on_rhomue * pm.h_e * gdw / f64::sqrt(Rex)
 }
 
 pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
@@ -234,11 +233,11 @@ pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
     */
     let qw = heat_transfer(z, pm);
     let hr = recovery_enthalpy(z, pm);
-    
+
     qw / ((hr - pm.h_wall) * pm.rho_e * pm.u_e)
 }
 
-pub fn boundary_layer_size(states: &Vec<State>) -> Option<f64> {
+pub fn boundary_layer_size(states: &[State]) -> Option<f64> {
     /*
         Use 99.9% of the freestream velocity to get the BL size.
     */
@@ -293,7 +292,7 @@ pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State> {
 
     println!("Solved boundary layer in {:?} iters", iterations);
     let wall_state_final = State::wall_state(fdd, gd, pm.h_wall, pm.h_e);
-    
+
     integrate_through_bl(wall_state_final, pm)
 }
 
@@ -341,14 +340,14 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State> {
 
     println!("Solved adiabatic boundary layer in {:?} iters", iterations);
     let wall_state_final = State::adiabatic_wall_state(fdd, g);
-    
+
     integrate_through_bl(wall_state_final, pm)
 }
 
 pub fn write_dat_file(states: Vec<State>, filename: &str, pm: &Parameters) {
     let file = File::create(filename).expect("Unable to open for writing");
     let mut buf = BufWriter::new(file);
-    buf.write(b"# y vel T rho p\n")
+    buf.write_all(b"# y vel T rho p\n")
         .expect("Unable to write to file");
 
     for zi in states {
@@ -370,6 +369,5 @@ pub fn write_dat_file(states: Vec<State>, filename: &str, pm: &Parameters) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_heat_transfer(x: f64) -> f64 {
-    
     1.65 * x
 }

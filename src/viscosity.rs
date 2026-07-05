@@ -12,17 +12,17 @@ const T_REF: f64 = 273.0;
 const S: f64 = 111.0;
 
 // T here is a generic type, not the temperature!
-pub fn sutherland_mu<T: ComplexFloat>(TEMP: T) -> T
+pub fn sutherland_mu<T>(TEMP: T) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     MU_REF * ComplexFloat::sqrt(TEMP / T_REF) * (TEMP / T_REF) * (T_REF + S) / (TEMP + S)
 }
 
-pub fn sutherland_mu_derivative<T: ComplexFloat>(TEMP: T) -> T
+pub fn sutherland_mu_derivative<T>(TEMP: T) -> T
 where
-    T: Cplx<T>,
+    T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
     MU_REF * (T_REF + S) * ComplexFloat::sqrt(TEMP / T_REF) * (3.0 * S + TEMP)
