@@ -137,17 +137,17 @@ pub fn self_similar_ode<T: Number>(_t: f64, z: State<T>, pm: &Parameters) -> Sta
     let fddd = C.inv() * (-f * fdd - Cd * fdd);
     let gdd = C.inv() * pm.Pr * (-gd * (Cd / pm.Pr + f) - C * pm.u_e * pm.u_e / pm.h_e * fdd * fdd);
     let yd = g * f64::sqrt(2.0 * pm.xi) / pm.u_e * pm.h_e / pm.p_e * (pm.gamma - 1.0) / pm.gamma;
-    let dzdeta = State {
+    
+    //println!("        Called ODE: g {:#} dCdg {:#} dCdg2 {:#}", g.re, dCdg.re, dCdg2.re);
+
+    State {
         f: fd,
         fd: fdd,
         fdd: fddd,
         g: gd,
         gd: gdd,
         y: yd,
-    };
-    //println!("        Called ODE: g {:#} dCdg {:#} dCdg2 {:#}", g.re, dCdg.re, dCdg2.re);
-
-    dzdeta
+    }
 }
 
 const NSTEPS: usize = 500;

@@ -71,9 +71,9 @@ impl<T: Number> State<T> {
         State {
             f: 0.0,
             fd: 0.0,
-            fdd: fdd,
+            fdd,
             g: (h_wall / h_e),
-            gd: gd,
+            gd,
             y: 0.0,
         }
         .cast()
@@ -83,8 +83,8 @@ impl<T: Number> State<T> {
         State {
             f: 0.0,
             fd: 0.0,
-            fdd: fdd,
-            g: g,
+            fdd,
+            g,
             gd: 0.0,
             y: 0.0,
         }
