@@ -55,7 +55,7 @@ fn main() {
 
     let adiabatic_states = solve_adiabatic_boundary_layer(&pm);
     let adiabatic_state_initial = adiabatic_states[0];
-    let hwall = adiabatic_state_initial.g.re * pm.h_e;
+    let hwall = adiabatic_state_initial.g * pm.h_e;
     let Twall = hwall / pm.C_p;
     println!("Adiabatic Wall Temp: {:5.5} K", Twall);
 

@@ -8,8 +8,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-//use num_complex::Complex64;
-use num_complex::ComplexFloat;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -20,18 +18,19 @@ pub mod mixedarithmetic;
 pub mod parameters;
 pub mod state;
 pub mod viscosity;
-use crate::mixedarithmetic::{Cplx, Mxd};
+use num_dual::Dual64;
+
 use crate::parameters::Parameters;
-use crate::state::State;
+use crate::state::{Number, State};
 use crate::viscosity::{sutherland_mu, sutherland_mu_derivative};
 
-pub fn rkf45_step(
-    f: fn(f64, State, &Parameters) -> State,
+pub fn rkf45_step<T: Number>(
+    f: fn(f64, State<T>, &Parameters) -> State<T>,
     t0: f64,
     h: f64,
-    y0: State,
+    y0: State<T>,
     pm: &Parameters,
-) -> (f64, State, State) {
+) -> (f64, State<T>, State<T>) {
     // Build up the sample point information as per the text book descriptions.
     let k1 = f(t0, y0, pm);
     let k2 = f(t0 + h / 4.0, y0 + 0.25 * h * k1, pm);
@@ -69,81 +68,61 @@ pub fn rkf45_step(
     (t0 + h, y1, err)
 }
 
-pub fn soft_max<T>(a: T, b: f64) -> T
-where
-    T: Cplx<T> + ComplexFloat,
-    f64: Mxd<T>,
-{
+pub fn soft_max<T: Number>(a: T, b: f64) -> T {
     let da = a - b;
-    let scale = 0.5 * (a + b);
-    let eps = 1e-3 * scale + 1e-3;
+    let scale = (a + b) * 0.5;
+    let eps = scale * 1e-3 + 1e-3;
 
-    scale + 0.5 * ComplexFloat::sqrt(da * da + eps * eps)
+    scale + (da * da + eps * eps).sqrt() / 2.0
 }
 
-pub fn soft_max_derivative<T>(a: T, b: f64) -> T
-where
-    T: Cplx<T> + ComplexFloat,
-    f64: Mxd<T>,
-{
+pub fn soft_max_derivative<T: Number>(a: T, b: f64) -> T {
     let da = a - b;
-    let scale = 0.5 * (a + b);
-    let eps = 1e-3 * scale + 1e-3;
-    let sqrtval = ComplexFloat::sqrt(da * da + eps * eps);
-    0.5 + 0.25 / sqrtval * (2.0 * da + 2.0 * eps * 1e-3 / 2.0)
+    let scale = (a + b) * 0.5;
+    let eps = scale * 1e-3 + 1e-3;
+    let sqrtval = (da * da + eps * eps).sqrt();
+    sqrtval.inv() * 0.25 * (da * 2.0 + eps * 1e-3) + 0.5
 }
 
-pub fn density_viscosity_product<T>(g: T, pm: &Parameters) -> T
-where
-    T: Cplx<T> + ComplexFloat,
-    f64: Mxd<T>,
-{
+pub fn density_viscosity_product<T: Number>(g: T, pm: &Parameters) -> T {
     /*!
         Ratio of density x viscosity product at a given point in the boundary layer
     */
     let Temp = g * pm.h_e / pm.C_p;
-    let SoftTemp = soft_max(Temp, 60.0);
-    let rho = pm.p_e / (pm.R * SoftTemp);
-    let mu = sutherland_mu(SoftTemp);
+    let softTemp = soft_max(Temp, 60.0);
+    let rho = (softTemp * pm.R).inv() * pm.p_e;
+    let mu = sutherland_mu(softTemp);
     rho * mu / (pm.rho_e * pm.mu_e)
 }
 
-pub fn density_viscosity_product_derivative2<T>(g: T, pm: &Parameters) -> T
-where
-    T: Cplx<T> + ComplexFloat,
-    f64: Mxd<T>,
-{
-    let deltag = 0.0001 * g; // something not too big, not too small
+pub fn density_viscosity_product_derivative2<T: Number>(g: T, pm: &Parameters) -> T {
+    let deltag = g * 0.0001; // something not too big, not too small
     let C0 = density_viscosity_product(g, pm);
     let C1 = density_viscosity_product(g + deltag, pm);
 
     (C1 - C0) / deltag
 }
 
-pub fn density_viscosity_product_derivative<T>(g: T, pm: &Parameters) -> T
-where
-    T: Cplx<T> + ComplexFloat,
-    f64: Mxd<T>,
-{
+pub fn density_viscosity_product_derivative<T: Number>(g: T, pm: &Parameters) -> T {
     let Temp = g * pm.h_e / pm.C_p;
-    let SoftTemp = soft_max(Temp, 60.0);
-    let rho = pm.p_e / (pm.R * SoftTemp);
-    let mu = sutherland_mu(SoftTemp);
+    let softTemp = soft_max(Temp, 60.0);
+    let rho = (softTemp * pm.R).inv() * pm.p_e;
+    let mu = sutherland_mu(softTemp);
 
     let dTdg = pm.h_e / pm.C_p;
     let dSTdT = soft_max_derivative(Temp, 60.0);
-    let dmudST = sutherland_mu_derivative(SoftTemp);
+    let dmudST = sutherland_mu_derivative(softTemp);
     let dmudT = dmudST * dSTdT;
     let dmudg = dmudT * dTdg;
 
-    let drhodST = -pm.p_e / pm.R / SoftTemp / SoftTemp;
+    let drhodST = -softTemp.powi(2).inv() * pm.p_e / pm.R;
     let drhodT = drhodST * dSTdT;
     let drhodg = drhodT * dTdg;
 
     (rho * dmudg + mu * drhodg) / (pm.rho_e * pm.mu_e)
 }
 
-pub fn self_similar_ode(_t: f64, z: State, pm: &Parameters) -> State {
+pub fn self_similar_ode<T: Number>(_t: f64, z: State<T>, pm: &Parameters) -> State<T> {
     let f = z.f;
     let fd = z.fd;
     let fdd = z.fdd;
@@ -155,9 +134,9 @@ pub fn self_similar_ode(_t: f64, z: State, pm: &Parameters) -> State {
     let dCdg = density_viscosity_product_derivative(g, pm);
     let Cd = dCdg * gd; // oops it's dCdeta = dCdg*dgdeta
 
-    let fddd = 1.0 / C * (-f * fdd - Cd * fdd);
-    let gdd = pm.Pr / C * (-gd * (Cd / pm.Pr + f) - C * pm.u_e * pm.u_e / pm.h_e * fdd * fdd);
-    let yd = f64::sqrt(2.0 * pm.xi) / pm.u_e * pm.h_e / pm.p_e * (pm.gamma - 1.0) / pm.gamma * g;
+    let fddd = C.inv() * (-f * fdd - Cd * fdd);
+    let gdd = C.inv() * pm.Pr * (-gd * (Cd / pm.Pr + f) - C * pm.u_e * pm.u_e / pm.h_e * fdd * fdd);
+    let yd = g * f64::sqrt(2.0 * pm.xi) / pm.u_e * pm.h_e / pm.p_e * (pm.gamma - 1.0) / pm.gamma;
     let dzdeta = State {
         f: fd,
         fd: fdd,
@@ -172,7 +151,7 @@ pub fn self_similar_ode(_t: f64, z: State, pm: &Parameters) -> State {
 }
 
 const NSTEPS: usize = 500;
-pub fn integrate_through_bl(state0: State, pm: &Parameters) -> Vec<State> {
+pub fn integrate_through_bl<T: Number>(state0: State<T>, pm: &Parameters) -> Vec<State<T>> {
     let mut eta0 = 0.0;
     let eta_final = 5.0;
     let deta = (eta_final - eta0) / (NSTEPS as f64);
@@ -194,30 +173,30 @@ pub fn integrate_through_bl(state0: State, pm: &Parameters) -> Vec<State> {
     zs
 }
 
-pub fn skin_friction(z: State, pm: &Parameters) -> f64 {
+pub fn skin_friction<T: Number>(z: State<T>, pm: &Parameters) -> T {
     /*!
         Return tau, using equations 6.71 and 6.59 from Anderson
     */
-    let rhomuw_on_rhomue = density_viscosity_product(z.g.re, pm);
-    let fddw = z.fdd.re;
+    let rhomuw_on_rhomue = density_viscosity_product(z.g, pm);
+    let fddw = z.fdd;
     let Rex = pm.rho_e * pm.u_e / pm.mu_e * pm.x;
-    let cf = f64::sqrt(2.0) * rhomuw_on_rhomue * fddw / f64::sqrt(Rex);
+    let cf = rhomuw_on_rhomue * fddw * f64::sqrt(2.0) / f64::sqrt(Rex);
 
-    0.5 * cf * pm.rho_e * pm.u_e * pm.u_e
+    cf * 0.5 * pm.rho_e * pm.u_e * pm.u_e
 }
 
-pub fn heat_transfer(z: State, pm: &Parameters) -> f64 {
+pub fn heat_transfer<T: Number>(z: State<T>, pm: &Parameters) -> T {
     /*!
         Return q, using equations 6.79 and ??? from Anderson.
     */
-    let rhomuw_on_rhomue = density_viscosity_product(z.g.re, pm);
-    let gdw = z.gd.re;
+    let rhomuw_on_rhomue = density_viscosity_product(z.g, pm);
+    let gdw = z.gd;
     let Rex = pm.rho_e * pm.u_e / pm.mu_e * pm.x;
 
-    pm.u_e * pm.rho_e / f64::sqrt(2.0) / pm.Pr * rhomuw_on_rhomue * pm.h_e * gdw / f64::sqrt(Rex)
+    rhomuw_on_rhomue * gdw * pm.u_e * pm.rho_e / f64::sqrt(2.0) / pm.Pr * pm.h_e / f64::sqrt(Rex)
 }
 
-pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
+pub fn recovery_enthalpy<T: Number>(z: State<T>, pm: &Parameters) -> f64 {
     /*!
         The enthlpy the gas reaches after being stagnated in the boundary
         layer. Anderson calls this h_aw, and this expression is equation 6.88.
@@ -225,7 +204,7 @@ pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
     pm.h_e + 0.5 * pm.u_e * pm.u_e * f64::sqrt(pm.Pr)
 }
 
-pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
+pub fn heat_transfer_coefficient<T: Number>(z: State<T>, pm: &Parameters) -> T {
     /*!
         Return pieces needed for equation 6.88 from Anderson. This may
         be useful for material response codes that need to model a
@@ -237,18 +216,18 @@ pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
     qw / ((hr - pm.h_wall) * pm.rho_e * pm.u_e)
 }
 
-pub fn boundary_layer_size(states: &[State]) -> Option<f64> {
+pub fn boundary_layer_size<T: Number>(states: &[State<T>]) -> Option<T> {
     /*!
         Use 99.9% of the freestream velocity to get the BL size.
     */
-    states.iter().find(|z| z.fd.re > 0.999).map(|z| z.y.re)
+    states.iter().find(|z| z.fd > 0.999).map(|z| z.y)
 }
 
 pub fn reynolds_number(rho: f64, vel: f64, mu: f64, x: f64) -> f64 {
     rho * vel * x / mu
 }
 
-pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State> {
+pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State<f64>> {
     let mut error = 1e99;
     let tol = 1e-10;
     let mut iterations = 0;
@@ -257,19 +236,23 @@ pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State> {
     let eps = 1e-16;
 
     while error > tol {
-        let mut state_pfdd = State::wall_state(fdd, gd, pm.h_wall, pm.h_e);
-        state_pfdd.fdd.im = eps;
+        let mut state_pfdd = State::<Dual64>::wall_state(fdd, gd, pm.h_wall, pm.h_e);
+        state_pfdd.fdd.eps = eps;
         let states_dfdd = integrate_through_bl(state_pfdd, pm);
         let state_dfdd = states_dfdd.last().unwrap();
-        let d_fd_dfdd = (state_dfdd.fd.im) / eps; // d_fd_dfdd == df1_dtau
-        let d_g_dfdd = (state_dfdd.g.im) / eps; // d_g_dfdd  == df2_dtau
+        // Derivative of final f' value with respect to initial f'' conditions
+        let d_fd_dfdd = (state_dfdd.fd.eps) / eps; // d_fd_dfdd == df1_dtau
+        // Derivative of final g value with respect to initial f'' conditions
+        let d_g_dfdd = (state_dfdd.g.eps) / eps; // d_g_dfdd  == df2_dtau
 
-        let mut state_pgd = State::wall_state(fdd, gd, pm.h_wall, pm.h_e);
-        state_pgd.gd.im = eps;
+        let mut state_pgd = State::<Dual64>::wall_state(fdd, gd, pm.h_wall, pm.h_e);
+        state_pgd.gd.eps = eps;
         let states_dgd = integrate_through_bl(state_pgd, pm);
         let state_dgd = states_dgd.last().unwrap();
-        let d_fd_dgd = (state_dgd.fd.im) / eps; // d_fd_dgd == df1_dq
-        let d_g_dgd = (state_dgd.g.im) / eps; // d_g_dgd  == df2_dq
+        // Derivative of final f' value with respect to initial g' conditions
+        let d_fd_dgd = (state_dgd.fd.eps) / eps; // d_fd_dgd == df1_dq
+        // Derivative of final g value with respect to initial g' conditions
+        let d_g_dgd = (state_dgd.g.eps) / eps; // d_g_dgd  == df2_dq
 
         let fd_err = state_dgd.fd.re - 1.0; // f1 == fd_err
         let g_err = state_dgd.g.re - 1.0; // f2 == g_err
@@ -296,7 +279,7 @@ pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State> {
     integrate_through_bl(wall_state_final, pm)
 }
 
-pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State> {
+pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State<f64>> {
     let mut error = 1e99;
     let tol = 1e-10;
     let mut iterations = 0;
@@ -305,19 +288,19 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State> {
     let eps = 1e-16;
 
     while error > tol {
-        let mut state_pfdd = State::adiabatic_wall_state(fdd, g);
-        state_pfdd.fdd.im = eps;
+        let mut state_pfdd = State::<Dual64>::adiabatic_wall_state(fdd, g);
+        state_pfdd.fdd.eps = eps;
         let states_dfdd = integrate_through_bl(state_pfdd, pm);
         let state_dfdd = states_dfdd.last().unwrap();
-        let d_fd_dfdd = (state_dfdd.fd.im) / eps;
-        let d_g_dfdd = (state_dfdd.g.im) / eps;
+        let d_fd_dfdd = (state_dfdd.fd.eps) / eps;
+        let d_g_dfdd = (state_dfdd.g.eps) / eps;
 
-        let mut state_pg = State::adiabatic_wall_state(fdd, g);
-        state_pg.g.im = eps;
+        let mut state_pg = State::<Dual64>::adiabatic_wall_state(fdd, g);
+        state_pg.g.eps = eps;
         let states_dg = integrate_through_bl(state_pg, pm);
         let state_dg = states_dg.last().unwrap();
-        let d_fd_dg = (state_dg.fd.im) / eps;
-        let d_g_dg = (state_dg.g.im) / eps;
+        let d_fd_dg = (state_dg.fd.eps) / eps;
+        let d_g_dg = (state_dg.g.eps) / eps;
 
         let fd_err = state_dg.fd.re - 1.0; // f1 == fd_err
         let g_err = state_dg.g.re - 1.0; // f2 == g_err
@@ -344,18 +327,18 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State> {
     integrate_through_bl(wall_state_final, pm)
 }
 
-pub fn write_dat_file(states: Vec<State>, filename: &str, pm: &Parameters) {
+pub fn write_dat_file(states: Vec<State<f64>>, filename: &str, pm: &Parameters) {
     let file = File::create(filename).expect("Unable to open for writing");
     let mut buf = BufWriter::new(file);
     buf.write_all(b"# y vel T rho p\n")
         .expect("Unable to write to file");
 
     for zi in states {
-        let h = zi.g.re * pm.h_e;
+        let h = zi.g * pm.h_e;
         let T = h / pm.C_p;
         let rho = pm.p_e / (pm.R * T);
-        let u = zi.fd.re * pm.u_e;
-        let y = zi.y.re;
+        let u = zi.fd * pm.u_e;
+        let y = zi.y;
         let p = pm.p_e;
 
         writeln!(

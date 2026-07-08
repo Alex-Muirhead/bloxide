@@ -5,251 +5,89 @@
     @author: Nick Gibbons
 */
 
-use num_complex::Complex64;
-use std::ops::{Add, Div, Mul, Sub};
+use derive_more::{Add, Div, Mul, Neg, Sub};
+use num_dual::DualNum;
+
+pub trait Number: DualNum<f64> + Copy {}
+impl<T: DualNum<f64> + Copy> Number for T {}
 
 // TODO: Maybe we don't want copy here???
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub struct State {
-    pub f: Complex64,
-    pub fd: Complex64,
-    pub fdd: Complex64,
-    pub g: Complex64,
-    pub gd: Complex64,
-    pub y: Complex64,
+#[derive(Debug, Clone, Copy, Add, Sub, Mul, Div, Neg)]
+pub struct State<T> {
+    pub f: T,
+    pub fd: T,
+    pub fdd: T,
+    pub g: T,
+    pub gd: T,
+    pub y: T,
 }
 
-impl Add for State {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            f: self.f + rhs.f,
-            fd: self.fd + rhs.fd,
-            fdd: self.fdd + rhs.fdd,
-            g: self.g + rhs.g,
-            gd: self.gd + rhs.gd,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl Add<Complex64> for State {
-    type Output = Self;
-    fn add(self, rhs: Complex64) -> Self {
-        Self {
-            f: self.f + rhs,
-            fd: self.fd + rhs,
-            fdd: self.fdd + rhs,
-            g: self.g + rhs,
-            gd: self.gd + rhs,
-            y: self.y + rhs,
-        }
-    }
-}
-
-impl Add<f64> for State {
-    type Output = Self;
-    fn add(self, rhs: f64) -> Self {
-        Self {
-            f: self.f + rhs,
-            fd: self.fd + rhs,
-            fdd: self.fdd + rhs,
-            g: self.g + rhs,
-            gd: self.gd + rhs,
-            y: self.y + rhs,
-        }
-    }
-}
-
-impl Mul<State> for State {
-    type Output = Self;
-    fn mul(self, rhs: State) -> Self {
-        Self {
-            f: self.f * rhs.f,
-            fd: self.fd * rhs.fd,
-            fdd: self.fdd * rhs.fdd,
-            g: self.g * rhs.g,
-            gd: self.gd * rhs.gd,
-            y: self.y * rhs.y,
-        }
-    }
-}
-
-impl Mul<Complex64> for State {
-    type Output = Self;
-    fn mul(self, rhs: Complex64) -> Self {
-        Self {
-            f: self.f * rhs,
-            fd: self.fd * rhs,
-            fdd: self.fdd * rhs,
-            g: self.g * rhs,
-            gd: self.gd * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
-
-impl Mul<State> for Complex64 {
-    type Output = State;
-    fn mul(self, rhs: State) -> State {
+impl<T> State<T> {
+    fn map<U>(self, mut f: impl FnMut(T) -> U) -> State<U> {
         State {
-            f: self * rhs.f,
-            fd: self * rhs.fd,
-            fdd: self * rhs.fdd,
-            g: self * rhs.g,
-            gd: self * rhs.gd,
-            y: self * rhs.y,
+            f: f(self.f),
+            fd: f(self.fd),
+            fdd: f(self.fdd),
+            g: f(self.g),
+            gd: f(self.gd),
+            y: f(self.y),
         }
     }
-}
 
-impl Mul<f64> for State {
-    type Output = Self;
-    fn mul(self, rhs: f64) -> Self {
-        Self {
-            f: self.f * rhs,
-            fd: self.fd * rhs,
-            fdd: self.fdd * rhs,
-            g: self.g * rhs,
-            gd: self.gd * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
-
-impl Mul<State> for f64 {
-    type Output = State;
-    fn mul(self, rhs: State) -> State {
+    fn map_ref<U>(self, mut f: impl FnMut(&T) -> U) -> State<U> {
         State {
-            f: self * rhs.f,
-            fd: self * rhs.fd,
-            fdd: self * rhs.fdd,
-            g: self * rhs.g,
-            gd: self * rhs.gd,
-            y: self * rhs.y,
+            f: f(&self.f),
+            fd: f(&self.fd),
+            fdd: f(&self.fdd),
+            g: f(&self.g),
+            gd: f(&self.gd),
+            y: f(&self.y),
         }
     }
 }
 
-impl Sub for State {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self {
-        Self {
-            f: self.f - rhs.f,
-            fd: self.fd - rhs.fd,
-            fdd: self.fdd - rhs.fdd,
-            g: self.g - rhs.g,
-            gd: self.gd - rhs.gd,
-            y: self.y - rhs.y,
-        }
+impl<T: Number> std::ops::Mul<State<T>> for f64 {
+    type Output = State<T>;
+
+    fn mul(self, rhs: State<T>) -> State<T> {
+        rhs * self
     }
 }
 
-impl Div for State {
-    type Output = Self;
-    fn div(self, rhs: Self) -> Self {
-        Self {
-            f: self.f / rhs.f,
-            fd: self.fd / rhs.fd,
-            fdd: self.fdd / rhs.fdd,
-            g: self.g / rhs.g,
-            gd: self.gd / rhs.gd,
-            y: self.y / rhs.y,
-        }
-    }
-}
-
-impl Div<State> for Complex64 {
-    type Output = State;
-    fn div(self, rhs: State) -> State {
-        State {
-            f: self / rhs.f,
-            fd: self / rhs.fd,
-            fdd: self / rhs.fdd,
-            g: self / rhs.g,
-            gd: self / rhs.gd,
-            y: self / rhs.y,
-        }
-    }
-}
-
-impl Div<Complex64> for State {
-    type Output = Self;
-    fn div(self, rhs: Complex64) -> Self {
-        Self {
-            f: self.f / rhs,
-            fd: self.fd / rhs,
-            fdd: self.fdd / rhs,
-            g: self.g / rhs,
-            gd: self.gd / rhs,
-            y: self.y / rhs,
-        }
-    }
-}
-
-impl Div<State> for f64 {
-    type Output = State;
-    fn div(self, rhs: State) -> State {
-        State {
-            f: self / rhs.f,
-            fd: self / rhs.fd,
-            fdd: self / rhs.fdd,
-            g: self / rhs.g,
-            gd: self / rhs.gd,
-            y: self / rhs.y,
-        }
-    }
-}
-
-impl Div<f64> for State {
-    type Output = Self;
-    fn div(self, rhs: f64) -> Self {
-        Self {
-            f: self.f / rhs,
-            fd: self.fd / rhs,
-            fdd: self.fdd / rhs,
-            g: self.g / rhs,
-            gd: self.gd / rhs,
-            y: self.y / rhs,
-        }
-    }
-}
-
-impl State {
+impl<T: Number> State<T> {
     pub fn abs(self) -> Self {
-        Self {
-            f: Complex64::new(f64::abs(self.f.re), self.f.im),
-            fd: Complex64::new(f64::abs(self.fd.re), self.fd.im),
-            fdd: Complex64::new(f64::abs(self.fdd.re), self.fdd.im),
-            g: Complex64::new(f64::abs(self.g.re), self.g.im),
-            gd: Complex64::new(f64::abs(self.gd.re), self.gd.im),
-            y: Complex64::new(f64::abs(self.y.re), self.y.im),
-        }
+        self.map_ref(T::abs)
     }
 }
 
-impl State {
+impl State<f64> {
+    pub fn cast<T: Number>(self) -> State<T> {
+        self.map(T::from)
+    }
+}
+
+impl<T: Number> State<T> {
     pub fn wall_state(fdd: f64, gd: f64, h_wall: f64, h_e: f64) -> Self {
-        Self {
-            f: Complex64::new(0.0, 0.0),
-            fd: Complex64::new(0.0, 0.0),
-            fdd: Complex64::new(fdd, 0.0),
-            g: Complex64::new(h_wall / h_e, 0.0),
-            gd: Complex64::new(gd, 0.0),
-            y: Complex64::new(0.0, 0.0),
+        State {
+            f: 0.0,
+            fd: 0.0,
+            fdd: fdd,
+            g: (h_wall / h_e),
+            gd: gd,
+            y: 0.0,
         }
+        .cast()
     }
-}
 
-impl State {
     pub fn adiabatic_wall_state(fdd: f64, g: f64) -> Self {
-        Self {
-            f: Complex64::new(0.0, 0.0),
-            fd: Complex64::new(0.0, 0.0),
-            fdd: Complex64::new(fdd, 0.0),
-            g: Complex64::new(g, 0.0),
-            gd: Complex64::new(0.0, 0.0),
-            y: Complex64::new(0.0, 0.0),
+        State {
+            f: 0.0,
+            fd: 0.0,
+            fdd: fdd,
+            g: g,
+            gd: 0.0,
+            y: 0.0,
         }
+        .cast()
     }
 }
