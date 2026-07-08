@@ -1,4 +1,4 @@
-/*
+/*!
     Storage area for horrible mixed arithmetic traits that placate the rust compiler
     into letting me do mixed complex/real arithmetic
 
@@ -7,7 +7,7 @@
 
 use std::ops::{Add, Div, Mul, Sub};
 
-// Super traits to allow mixed complex/real arithmetic
+/// Super traits to allow mixed complex/real arithmetic
 pub trait Cplx<T>:
     Mul<f64, Output = T> + Add<f64, Output = T> + Div<f64, Output = T> + Sub<f64, Output = T>
 {

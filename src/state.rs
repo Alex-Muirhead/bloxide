@@ -1,4 +1,4 @@
-/*
+/*!
     Let's use structs with named fields instead of array. I can't
     get the complex numbers to work properly with those.
 

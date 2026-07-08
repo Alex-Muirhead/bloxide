@@ -1,4 +1,4 @@
-/*
+/*!
     bloxide: A compressible boundary layer analysis code.
 
     References:

@@ -1,4 +1,4 @@
-/*
+/*!
     Code for computing viscosity with the Sutherland expression
 
     @author: Nick Gibbons

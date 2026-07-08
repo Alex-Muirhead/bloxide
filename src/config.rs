@@ -1,4 +1,4 @@
-/*
+/*!
     Config file reading and associated data structures.
 
     @author: Nick Gibbons
@@ -22,7 +22,7 @@ pub struct Config {
 }
 
 fn coerce_to_f64(node: Yaml) -> f64 {
-    /*
+    /*!
         rust_yaml is very pedantic about type conversions and will not parse integer
         values using as_f64. This leads to trouble for users, who will hapilly enter
         values like "287" and expect them to be converted to 287.0 under the hood.
@@ -48,7 +48,6 @@ pub fn read_config_file(filename: &str) -> Config {
     let pages = YamlLoader::load_from_str(buffer.as_str()).unwrap();
     let cfg = &pages[0];
 
-    
     Config {
         R: coerce_to_f64(cfg["R"].clone()),
         gamma: coerce_to_f64(cfg["gamma"].clone()),

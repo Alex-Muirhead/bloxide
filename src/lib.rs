@@ -1,4 +1,4 @@
-/*
+/*!
     Core routines for bloxide: A compressible boundary layer analysis code written in Rust.
 
     @author: Nick Gibbons
@@ -98,7 +98,7 @@ where
     T: Cplx<T> + ComplexFloat,
     f64: Mxd<T>,
 {
-    /*
+    /*!
         Ratio of density x viscosity product at a given point in the boundary layer
     */
     let Temp = g * pm.h_e / pm.C_p;
@@ -195,7 +195,7 @@ pub fn integrate_through_bl(state0: State, pm: &Parameters) -> Vec<State> {
 }
 
 pub fn skin_friction(z: State, pm: &Parameters) -> f64 {
-    /*
+    /*!
         Return tau, using equations 6.71 and 6.59 from Anderson
     */
     let rhomuw_on_rhomue = density_viscosity_product(z.g.re, pm);
@@ -207,7 +207,7 @@ pub fn skin_friction(z: State, pm: &Parameters) -> f64 {
 }
 
 pub fn heat_transfer(z: State, pm: &Parameters) -> f64 {
-    /*
+    /*!
         Return q, using equations 6.79 and ??? from Anderson.
     */
     let rhomuw_on_rhomue = density_viscosity_product(z.g.re, pm);
@@ -218,7 +218,7 @@ pub fn heat_transfer(z: State, pm: &Parameters) -> f64 {
 }
 
 pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
-    /*
+    /*!
         The enthlpy the gas reaches after being stagnated in the boundary
         layer. Anderson calls this h_aw, and this expression is equation 6.88.
     */
@@ -226,7 +226,7 @@ pub fn recovery_enthalpy(z: State, pm: &Parameters) -> f64 {
 }
 
 pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
-    /*
+    /*!
         Return pieces needed for equation 6.88 from Anderson. This may
         be useful for material response codes that need to model a
         changing wall temperature.
@@ -238,7 +238,7 @@ pub fn heat_transfer_coefficient(z: State, pm: &Parameters) -> f64 {
 }
 
 pub fn boundary_layer_size(states: &[State]) -> Option<f64> {
-    /*
+    /*!
         Use 99.9% of the freestream velocity to get the BL size.
     */
     states.iter().find(|z| z.fd.re > 0.999).map(|z| z.y.re)
