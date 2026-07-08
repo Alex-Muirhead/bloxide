@@ -5,7 +5,6 @@
 */
 
 #![allow(non_snake_case)]
-#![allow(dead_code)]
 #![allow(unused_variables)]
 
 use std::fs::File;
@@ -14,15 +13,14 @@ use std::io::{BufWriter, Write};
 extern crate yaml_rust;
 
 pub mod config;
-pub mod mixedarithmetic;
 pub mod parameters;
 pub mod state;
 pub mod viscosity;
-use num_dual::Dual64;
+use num_dual::{Dual64, first_derivative};
 
 use crate::parameters::Parameters;
 use crate::state::{Number, State};
-use crate::viscosity::{sutherland_mu, sutherland_mu_derivative};
+use crate::viscosity::sutherland_mu;
 
 pub fn rkf45_step<T: Number>(
     f: fn(f64, State<T>, &Parameters) -> State<T>,
@@ -76,14 +74,6 @@ pub fn soft_max<T: Number>(a: T, b: f64) -> T {
     scale + (da * da + eps * eps).sqrt() / 2.0
 }
 
-pub fn soft_max_derivative<T: Number>(a: T, b: f64) -> T {
-    let da = a - b;
-    let scale = (a + b) * 0.5;
-    let eps = scale * 1e-3 + 1e-3;
-    let sqrtval = (da * da + eps * eps).sqrt();
-    sqrtval.inv() * 0.25 * (da * 2.0 + eps * 1e-3) + 0.5
-}
-
 pub fn density_viscosity_product<T: Number>(g: T, pm: &Parameters) -> T {
     /*!
         Ratio of density x viscosity product at a given point in the boundary layer
@@ -95,59 +85,20 @@ pub fn density_viscosity_product<T: Number>(g: T, pm: &Parameters) -> T {
     rho * mu / (pm.rho_e * pm.mu_e)
 }
 
-pub fn density_viscosity_product_derivative2<T: Number>(g: T, pm: &Parameters) -> T {
-    let deltag = g * 0.0001; // something not too big, not too small
-    let C0 = density_viscosity_product(g, pm);
-    let C1 = density_viscosity_product(g + deltag, pm);
-
-    (C1 - C0) / deltag
-}
-
-pub fn density_viscosity_product_derivative<T: Number>(g: T, pm: &Parameters) -> T {
-    let Temp = g * pm.h_e / pm.C_p;
-    let softTemp = soft_max(Temp, 60.0);
-    let rho = (softTemp * pm.R).inv() * pm.p_e;
-    let mu = sutherland_mu(softTemp);
-
-    let dTdg = pm.h_e / pm.C_p;
-    let dSTdT = soft_max_derivative(Temp, 60.0);
-    let dmudST = sutherland_mu_derivative(softTemp);
-    let dmudT = dmudST * dSTdT;
-    let dmudg = dmudT * dTdg;
-
-    let drhodST = -softTemp.powi(2).inv() * pm.p_e / pm.R;
-    let drhodT = drhodST * dSTdT;
-    let drhodg = drhodT * dTdg;
-
-    (rho * dmudg + mu * drhodg) / (pm.rho_e * pm.mu_e)
-}
-
 pub fn self_similar_ode<T: Number>(_t: f64, z: State<T>, pm: &Parameters) -> State<T> {
-    let f = z.f;
-    let fd = z.fd;
-    let fdd = z.fdd;
-    let g = z.g;
-    let gd = z.gd;
-    let y = z.y;
+    let State { f, fd, fdd, g, gd, y } = z;
 
-    let C = density_viscosity_product(g, pm);
-    let dCdg = density_viscosity_product_derivative(g, pm);
+    let (C, dCdg) = first_derivative(|g| density_viscosity_product(g, pm), g);
     let Cd = dCdg * gd; // oops it's dCdeta = dCdg*dgdeta
 
     let fddd = C.inv() * (-f * fdd - Cd * fdd);
-    let gdd = C.inv() * pm.Pr * (-gd * (Cd / pm.Pr + f) - C * pm.u_e * pm.u_e / pm.h_e * fdd * fdd);
+    let gdd =
+        C.inv() * pm.Pr * (-gd * (Cd / pm.Pr + f) - C * pm.u_e.powi(2) / pm.h_e * fdd.powi(2));
     let yd = g * f64::sqrt(2.0 * pm.xi) / pm.u_e * pm.h_e / pm.p_e * (pm.gamma - 1.0) / pm.gamma;
-    
+
     //println!("        Called ODE: g {:#} dCdg {:#} dCdg2 {:#}", g.re, dCdg.re, dCdg2.re);
 
-    State {
-        f: fd,
-        fd: fdd,
-        fdd: fddd,
-        g: gd,
-        gd: gdd,
-        y: yd,
-    }
+    State { f: fd, fd: fdd, fdd: fddd, g: gd, gd: gdd, y: yd }
 }
 
 const NSTEPS: usize = 500;
