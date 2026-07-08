@@ -12,7 +12,8 @@ pub trait Number: DualNum<f64> + Copy {}
 impl<T: DualNum<f64> + Copy> Number for T {}
 
 // TODO: Maybe we don't want copy here???
-#[derive(Debug, Clone, Copy, Add, Sub, Mul, Div, Neg)]
+#[derive(Clone, Copy, Debug)]
+#[derive(Add, Sub, Mul, Div, Neg)]
 pub struct State<T> {
     pub f: T,
     pub fd: T,
@@ -80,14 +81,6 @@ impl<T: Number> State<T> {
     }
 
     pub fn adiabatic_wall_state(fdd: f64, g: f64) -> Self {
-        State {
-            f: 0.0,
-            fd: 0.0,
-            fdd,
-            g,
-            gd: 0.0,
-            y: 0.0,
-        }
-        .cast()
+        State { f: 0.0, fd: 0.0, fdd, g, gd: 0.0, y: 0.0 }.cast()
     }
 }

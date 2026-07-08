@@ -103,22 +103,21 @@ pub fn self_similar_ode<T: Number>(_t: f64, z: State<T>, pm: &Parameters) -> Sta
 
 const NSTEPS: usize = 500;
 pub fn integrate_through_bl<T: Number>(state0: State<T>, pm: &Parameters) -> Vec<State<T>> {
-    let mut eta0 = 0.0;
+    /*!
+        Fixed-step integrator through eta = [0, 5]
+    */
+    let eta0 = 0.0;
     let eta_final = 5.0;
-    let deta = (eta_final - eta0) / (NSTEPS as f64);
-    let mut z0 = state0;
-    let mut zs = Vec::with_capacity(NSTEPS + 1);
-    zs.push(z0);
+    let d_eta = (eta_final - eta0) / (NSTEPS as f64);
 
-    for step in 0..NSTEPS {
-        let (eta1, z1, _err) = rkf45_step(self_similar_ode, eta0, deta, z0, pm);
-        eta0 = eta1;
-        z0 = z1;
-        //let hi = z0.g.re*pm.h_e; let Ti = hi / pm.C_p;
-        //let softTi = soft_max(Ti, 60.0);
-        //println!("    step {:?}: [{:?},{:?},{:?},{:?},{:?},{:?}] T: {:?} ({:?})", step, z0.f.re, z0.fd.re, z0.fdd.re, z0.g.re, z0.gd.re, z0.y.re, Ti, softTi);
-        //println!("           im: [{:?},{:?},{:?},{:?},{:?},{:?}] ", z0.f.im, z0.fd.im, z0.fdd.im, z0.g.im, z0.gd.im, z0.y.im);
-        zs.push(z0)
+    let mut zs = Vec::with_capacity(NSTEPS + 1);
+    zs.push(state0);
+
+    let mut eta = eta0;
+    let mut z = state0;
+    for _ in 0..NSTEPS {
+        (eta, z, _) = rkf45_step(self_similar_ode, eta, d_eta, z, pm);
+        zs.push(z);
     }
 
     zs
