@@ -6,7 +6,7 @@
 */
 
 use derive_more::{Add, Div, Mul, Neg, Sub};
-use num_dual::DualNum;
+use num_dual::{Dual64, DualNum, DualSVec64};
 
 pub trait Number: DualNum<f64> + Copy {}
 impl<T: DualNum<f64> + Copy> Number for T {}
@@ -65,9 +65,7 @@ impl State<f64> {
     pub fn cast<T: Number>(self) -> State<T> {
         self.map(T::from)
     }
-}
 
-impl<T: Number> State<T> {
     pub fn wall_state(fdd: f64, gd: f64, h_wall: f64, h_e: f64) -> Self {
         State {
             f: 0.0,
@@ -77,10 +75,29 @@ impl<T: Number> State<T> {
             gd,
             y: 0.0,
         }
-        .cast()
     }
 
     pub fn adiabatic_wall_state(fdd: f64, g: f64) -> Self {
-        State { f: 0.0, fd: 0.0, fdd, g, gd: 0.0, y: 0.0 }.cast()
+        State { f: 0.0, fd: 0.0, fdd, g, gd: 0.0, y: 0.0 }
+    }
+}
+
+impl State<Dual64> {
+    pub fn split(self) -> (State<f64>, State<f64>) {
+        let value = self.map(|d| d.re);
+        let deriv = self.map(|d| d.eps);
+        (value, deriv)
+    }
+}
+
+impl<const N: usize> State<DualSVec64<N>> {
+    /// Split into the value and one State per derivative
+    pub fn split(self) -> (State<f64>, [State<f64>; N]) {
+        let value = self.map(|d| d.re);
+        let derivs = std::array::from_fn(|i| {
+            // A bit of icky "plumbing" code to get the specific element
+            self.map(|d| d.eps.unwrap_generic(nalgebra::Const::<N>, nalgebra::Const)[i])
+        });
+        (value, derivs)
     }
 }

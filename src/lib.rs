@@ -16,7 +16,7 @@ pub mod config;
 pub mod parameters;
 pub mod state;
 pub mod viscosity;
-use num_dual::{Dual64, first_derivative};
+use num_dual::{DualSVec64, first_derivative};
 
 use crate::parameters::Parameters;
 use crate::state::{Number, State};
@@ -183,37 +183,31 @@ pub fn solve_boundary_layer(pm: &Parameters) -> Vec<State<f64>> {
     let mut iterations = 0;
     let mut fdd = 0.5;
     let mut gd = 1.0;
-    let eps = 1e-16;
 
     while error > tol {
-        let mut state_pfdd = State::<Dual64>::wall_state(fdd, gd, pm.h_wall, pm.h_e);
-        state_pfdd.fdd.eps = eps;
-        let states_dfdd = integrate_through_bl(state_pfdd, pm);
-        let state_dfdd = states_dfdd.last().unwrap();
-        // Derivative of final f' value with respect to initial f'' conditions
-        let d_fd_dfdd = (state_dfdd.fd.eps) / eps; // d_fd_dfdd == df1_dtau
-        // Derivative of final g value with respect to initial f'' conditions
-        let d_g_dfdd = (state_dfdd.g.eps) / eps; // d_g_dfdd  == df2_dtau
+        let dual_wall_state = {
+            // Tag the derivatives we care about
+            let mut state: State<DualSVec64<2>> =
+                State::wall_state(fdd, gd, pm.h_wall, pm.h_e).cast();
+            state.fdd = state.fdd.derivative(0);
+            state.gd = state.gd.derivative(1);
+            state
+        };
 
-        let mut state_pgd = State::<Dual64>::wall_state(fdd, gd, pm.h_wall, pm.h_e);
-        state_pgd.gd.eps = eps;
-        let states_dgd = integrate_through_bl(state_pgd, pm);
-        let state_dgd = states_dgd.last().unwrap();
-        // Derivative of final f' value with respect to initial g' conditions
-        let d_fd_dgd = (state_dgd.fd.eps) / eps; // d_fd_dgd == df1_dq
-        // Derivative of final g value with respect to initial g' conditions
-        let d_g_dgd = (state_dgd.g.eps) / eps; // d_g_dgd  == df2_dq
+        let (state, [partial_fdd, partial_gd]) = integrate_through_bl(dual_wall_state, pm)
+            .last()
+            .expect("Integration didn't return any values")
+            .split();
 
-        let fd_err = state_dgd.fd.re - 1.0; // f1 == fd_err
-        let g_err = state_dgd.g.re - 1.0; // f2 == g_err
+        let fd_err = state.fd - 1.0; // f1 == fd_err
+        let g_err = state.g - 1.0; // f2 == g_err
         error = f64::sqrt(fd_err * fd_err + g_err * g_err);
 
         // Two equation Newton's Method has a 2x2 jacobian that can be
         // inverted analytically. Do this here to get fdd and gd corrections.
-        let diff_fdd =
-            (fd_err * d_g_dgd / d_fd_dgd - g_err) / (d_g_dfdd - d_g_dgd * d_fd_dfdd / d_fd_dgd);
-        let diff_gd =
-            (fd_err * d_g_dfdd / d_fd_dfdd - g_err) / (d_g_dgd - d_g_dfdd * d_fd_dgd / d_fd_dfdd);
+        let determinant = partial_fdd.g * partial_gd.fd - partial_gd.g * partial_fdd.fd;
+        let diff_fdd = (fd_err * partial_gd.g - g_err * partial_gd.fd) / determinant;
+        let diff_gd = (g_err * partial_fdd.fd - fd_err * partial_fdd.g) / determinant;
         fdd += diff_fdd;
         gd += diff_gd;
 
@@ -238,30 +232,28 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State<f64>> {
     let eps = 1e-16;
 
     while error > tol {
-        let mut state_pfdd = State::<Dual64>::adiabatic_wall_state(fdd, g);
-        state_pfdd.fdd.eps = eps;
-        let states_dfdd = integrate_through_bl(state_pfdd, pm);
-        let state_dfdd = states_dfdd.last().unwrap();
-        let d_fd_dfdd = (state_dfdd.fd.eps) / eps;
-        let d_g_dfdd = (state_dfdd.g.eps) / eps;
+        let dual_wall_state = {
+            // Tag the derivatives we care about
+            let mut state: State<DualSVec64<2>> = State::adiabatic_wall_state(fdd, g).cast();
+            state.fdd = state.fdd.derivative(0);
+            state.g = state.g.derivative(1);
+            state
+        };
 
-        let mut state_pg = State::<Dual64>::adiabatic_wall_state(fdd, g);
-        state_pg.g.eps = eps;
-        let states_dg = integrate_through_bl(state_pg, pm);
-        let state_dg = states_dg.last().unwrap();
-        let d_fd_dg = (state_dg.fd.eps) / eps;
-        let d_g_dg = (state_dg.g.eps) / eps;
+        let (state, [partial_fdd, partial_g]) = integrate_through_bl(dual_wall_state, pm)
+            .last()
+            .expect("Integration didn't return any values")
+            .split();
 
-        let fd_err = state_dg.fd.re - 1.0; // f1 == fd_err
-        let g_err = state_dg.g.re - 1.0; // f2 == g_err
+        let fd_err = state.fd - 1.0; // f1 == fd_err
+        let g_err = state.g - 1.0; // f2 == g_err
         error = f64::sqrt(fd_err * fd_err + g_err * g_err);
 
         // Two equation Newton's Method has a 2x2 jacobian that can be
-        // inverted analytically. Do this here to get fdd and g corrections.
-        let diff_fdd =
-            (fd_err * d_g_dg / d_fd_dg - g_err) / (d_g_dfdd - d_g_dg * d_fd_dfdd / d_fd_dg);
-        let diff_g =
-            (fd_err * d_g_dfdd / d_fd_dfdd - g_err) / (d_g_dg - d_g_dfdd * d_fd_dg / d_fd_dfdd);
+        // inverted analytically. Do this here to get fdd and gd corrections.
+        let determinant = partial_fdd.g * partial_g.fd - partial_g.g * partial_fdd.fd;
+        let diff_fdd = (fd_err * partial_g.g - g_err * partial_g.fd) / determinant;
+        let diff_g = (g_err * partial_fdd.fd - fd_err * partial_fdd.g) / determinant;
         fdd += diff_fdd;
         g += diff_g;
 

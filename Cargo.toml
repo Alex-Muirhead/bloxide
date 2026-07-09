@@ -14,3 +14,4 @@ num-complex = "0.4"
 yaml-rust = { version = "0.10.4", package = "yaml-rust2" }
 num-dual = "0.14.1"
 derive_more = { version = "2.1.1", features = ["add", "mul", "not"] }
+nalgebra = "0.35.0"
