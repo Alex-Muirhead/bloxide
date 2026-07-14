@@ -9,6 +9,7 @@
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::ops::{Add, Mul};
 
 extern crate yaml_rust;
 
@@ -19,51 +20,52 @@ pub mod viscosity;
 use num_dual::{DualSVec64, first_derivative};
 
 use crate::parameters::Parameters;
-use crate::state::{Number, State};
+use crate::state::{Abs, Number, State};
 use crate::viscosity::sutherland_mu;
 
-pub fn rkf45_step<T: Number>(
-    f: fn(f64, State<T>, &Parameters) -> State<T>,
-    t0: f64,
-    h: f64,
-    y0: State<T>,
-    pm: &Parameters,
-) -> (f64, State<T>, State<T>) {
+pub fn rkf45_step<S>(f: impl Fn(f64, S) -> S, t: f64, y: S, h: f64) -> (f64, S, S)
+where
+    S: Copy + Add<Output = S> + Mul<f64, Output = S> + Abs,
+{
     // Build up the sample point information as per the text book descriptions.
-    let k1 = f(t0, y0, pm);
-    let k2 = f(t0 + h / 4.0, y0 + 0.25 * h * k1, pm);
+    let k1 = f(t, y);
+    let k2 = f(t + h / 4.0, y + k1 * 0.25 * h);
     let k3 = f(
-        t0 + 3.0 * h / 8.0,
-        y0 + 3.0 * h * k1 / 32.0 + 9.0 * h * k2 / 32.0,
-        pm,
+        t + h * (3.0 / 8.0),
+        y + k1 * h * (3.0 / 32.0) + k2 * h * (9.0 / 32.0),
     );
     let k4 = f(
-        t0 + 12.0 * h / 13.0,
-        y0 + 1932.0 * h * k1 / 2197.0 - 7200.0 * h * k2 / 2197.0 + 7296.0 * h * k3 / 2197.0,
-        pm,
+        t + h * (12.0 / 13.0),
+        y + k1 * h * (1932.0 / 2197.0) + k2 * h * (-7200.0 / 2197.0) + k3 * h * (7296.0 / 2197.0),
     );
     let k5 = f(
-        t0 + h,
-        y0 + 439.0 * h * k1 / 216.0 - 8.0 * h * k2 + 3680.0 * h * k3 / 513.0
-            - 845.0 * h * k4 / 4104.0,
-        pm,
+        t + h,
+        y + k1 * h * (439.0 / 216.0)
+            + k2 * h * -8.0
+            + k3 * h * (3680.0 / 513.0)
+            + k4 * h * (-845.0 / 4104.0),
     );
     let k6 = f(
-        t0 + h / 2.0,
-        y0 - 8.0 * h * k1 / 27.0 + 2.0 * h * k2 - 3544.0 * h * k3 / 2565.0
-            + 1859.0 * h * k4 / 4104.0
-            - 11.0 * h * k5 / 40.0,
-        pm,
+        t + h / 2.0,
+        y + k1 * h * (-8.0 / 27.0)
+            + k2 * h * 2.0
+            + k3 * h * (-3544.0 / 2565.0)
+            + k4 * h * (1859.0 / 4104.0)
+            + k5 * h * (-11.0 / 40.0),
     );
     // Now, do the integration as a weighting of the sampled data.
-    let y1 = y0 + 16.0 * h * k1 / 135.0 + 6656.0 * h * k3 / 12825.0 + 28561.0 * h * k4 / 56430.0
-        - 9.0 * h * k5 / 50.0
-        + 2.0 * h * k6 / 55.0;
-    let err = (h * k1 / 360.0 - 128.0 * h * k3 / 4275.0 - 2197.0 * h * k4 / 75240.0
-        + h * k5 / 50.0
-        + 2.0 * h * k6 / 55.0)
-        .abs();
-    (t0 + h, y1, err)
+    let y1 = y
+        + k1 * h * (16.0 / 135.0)
+        + k3 * h * (6656.0 / 12825.0)
+        + k4 * h * (28561.0 / 56430.0)
+        + k5 * h * (-9.0 / 50.0)
+        + k6 * h * (2.0 / 55.0);
+    let err = k1 * h * (1.0 / 360.0)
+        + k3 * h * (-128.0 / 4275.0)
+        + k4 * h * (-2197.0 / 75240.0)
+        + k5 * h * (1.0 / 50.0)
+        + k6 * h * (2.0 / 55.0);
+    (t + h, y1, err.abs())
 }
 
 pub fn soft_max<T: Number>(a: T, b: f64) -> T {
@@ -116,7 +118,7 @@ pub fn integrate_through_bl<T: Number>(state0: State<T>, pm: &Parameters) -> Vec
     let mut eta = eta0;
     let mut z = state0;
     for _ in 0..NSTEPS {
-        (eta, z, _) = rkf45_step(self_similar_ode, eta, d_eta, z, pm);
+        (eta, z, _) = rkf45_step(|t, y| self_similar_ode(t, y, pm), eta, z, d_eta);
         zs.push(z);
     }
 

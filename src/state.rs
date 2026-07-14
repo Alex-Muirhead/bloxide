@@ -23,6 +23,10 @@ pub struct State<T> {
     pub y: T,
 }
 
+pub trait Abs {
+    fn abs(self) -> Self;
+}
+
 impl<T> State<T> {
     fn map<U>(self, mut f: impl FnMut(T) -> U) -> State<U> {
         State {
@@ -55,8 +59,8 @@ impl<T: Number> std::ops::Mul<State<T>> for f64 {
     }
 }
 
-impl<T: Number> State<T> {
-    pub fn abs(self) -> Self {
+impl<T: Number> Abs for State<T> {
+    fn abs(self) -> Self {
         self.map_ref(T::abs)
     }
 }
