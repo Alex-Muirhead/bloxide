@@ -7,10 +7,7 @@
 use crate::config::Config;
 use crate::viscosity::sutherland_mu;
 
-use pyo3::prelude::*;
-
 #[derive(Clone, Copy)]
-#[pyclass(from_py_object)]
 pub struct Parameters {
     pub R: f64,
     pub gamma: f64,

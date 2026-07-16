@@ -4,16 +4,25 @@
     @author: Nick Gibbons
 */
 
-use std::fs::File;
-use std::io::prelude::*;
+use std::fs;
+use std::path::Path;
 
-use yaml_rust::{Yaml, YamlLoader};
+use serde::Deserialize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("unable to read config file: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("failed to parse config file: {0}")]
+    Parse(#[from] toml::de::Error),
+}
+
+#[derive(Debug, PartialEq, Deserialize)]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(frozen, get_all, eq, module = "bloxidepy")
 )]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub R: f64,
     pub gamma: f64,
@@ -26,55 +35,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(
-        R: f64,
-        gamma: f64,
-        Pr: f64,
-        p_e: f64,
-        u_e: f64,
-        T_e: f64,
-        T_wall: f64,
-        x: f64,
-    ) -> Self {
-        return Self { R, gamma, Pr, p_e, u_e, T_e, T_wall, x };
+    /// Parse a Config from a TOML string. Pure parsing, no I/O.
+    pub fn from_toml(s: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str(s)
     }
-}
 
-fn coerce_to_f64(node: Yaml) -> f64 {
-    /*!
-        rust_yaml is very pedantic about type conversions and will not parse integer
-        values using as_f64. This leads to trouble for users, who will hapilly enter
-        values like "287" and expect them to be converted to 287.0 under the hood.
-
-        This function uses a match statement to first attempt an f64 parse, then
-        tries an i64 one that converts to f64 explicitly, then panics if neither
-        operation is successful.
-    */
-    let val = node.as_f64();
-    match val {
-        Some(f64) => val.unwrap(),
-        None => node.as_i64().expect("Failed to parse config file.") as f64,
-    }
-}
-
-pub fn read_config_file(filename: &str) -> Config {
-    let mut f =
-        File::open(filename).unwrap_or_else(|_| panic!("Unable to open yaml file {}", filename));
-    let mut buffer = String::new();
-    f.read_to_string(&mut buffer)
-        .expect("Unable to parse file to string");
-
-    let pages = YamlLoader::load_from_str(buffer.as_str()).unwrap();
-    let cfg = &pages[0];
-
-    Config {
-        R: coerce_to_f64(cfg["R"].clone()),
-        gamma: coerce_to_f64(cfg["gamma"].clone()),
-        Pr: coerce_to_f64(cfg["Pr"].clone()),
-        p_e: coerce_to_f64(cfg["p_e"].clone()),
-        u_e: coerce_to_f64(cfg["u_e"].clone()),
-        T_e: coerce_to_f64(cfg["T_e"].clone()),
-        T_wall: coerce_to_f64(cfg["T_wall"].clone()),
-        x: coerce_to_f64(cfg["x"].clone()),
+    /// Read and parse a Config from a TOML file.
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
+        let buffer = fs::read_to_string(path)?;
+        Ok(Self::from_toml(&buffer)?)
     }
 }

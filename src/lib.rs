@@ -11,8 +11,6 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::{Add, Mul};
 
-extern crate yaml_rust;
-
 pub mod config;
 pub mod parameters;
 #[cfg(feature = "python")]

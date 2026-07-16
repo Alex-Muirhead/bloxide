@@ -12,19 +12,20 @@
 
 use std::env;
 
-use bloxide::config::read_config_file;
+use bloxide::config::Config;
 use bloxide::parameters::Parameters;
 use bloxide::*;
 
 fn main() {
     println!("bloxide: A compressible boundary layer analysis code.");
-    let mut config_file_name = "test.yaml";
+    let mut config_file_name = "test.toml";
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
         config_file_name = args[1].as_str();
     }
 
-    let config = read_config_file(config_file_name);
+    let config = Config::from_file(config_file_name)
+        .unwrap_or_else(|err| panic!("Failed to load config file {}: {}", config_file_name, err));
     let pm = Parameters::new(&config);
     println!("{:#?}", config);
 
@@ -58,7 +59,7 @@ fn main() {
     let Twall = hwall / pm.C_p;
     println!("Adiabatic Wall Temp: {:5.5} K", Twall);
 
-    let filename = config_file_name.replace(".yaml", ".dat");
+    let filename = config_file_name.replace(".toml", ".dat");
     write_dat_file(states, filename.as_str(), &pm);
 
     println!("Done.");

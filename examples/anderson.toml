@@ -1,0 +1,12 @@
+# anderson.toml
+# Exaples 6.3 from Hypersonic and High Temperature Gasdynamics by John Anderson
+# Nick Gibbons (2025-Nov)
+
+R = 287.1
+gamma = 1.4
+Pr = 0.71
+p_e = 1.01e5
+u_e = 3402.0
+T_e = 288.0
+T_wall = 288.0
+x = 0.5

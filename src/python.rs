@@ -23,7 +23,7 @@ impl Config {
         T_wall: f64,
         x: f64,
     ) -> Self {
-        Config::new(R, gamma, Pr, p_e, u_e, T_e, T_wall, x)
+        Config { R, gamma, Pr, p_e, u_e, T_e, T_wall, x }
     }
 
     fn __repr__(&self) -> String {
@@ -35,8 +35,10 @@ impl Config {
 mod _core {
     use std::path::PathBuf;
 
-    use pyo3::exceptions::{PyFileNotFoundError, PyValueError};
+    use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
+
+    use crate::config::ConfigError;
 
     #[pymodule_export]
     use crate::config::Config;
@@ -48,15 +50,13 @@ mod _core {
 
     #[pyfunction]
     fn read_config_file(path: PathBuf) -> PyResult<Config> {
-        if !path.exists() {
-            return Err(PyFileNotFoundError::new_err(format!(
-                "No such config file: {}",
-                path.display()
-            )));
-        }
-        let filename = path
-            .to_str()
-            .ok_or_else(|| PyValueError::new_err("config path is not valid UTF-8"))?;
-        Ok(crate::config::read_config_file(filename))
+        Config::from_file(&path).map_err(|err| match err {
+            // io::Error converts to the matching Python OSError subclass,
+            // e.g. FileNotFoundError or PermissionError.
+            ConfigError::Io(err) => err.into(),
+            ConfigError::Parse(err) => {
+                PyValueError::new_err(format!("{}: {}", path.display(), err))
+            }
+        })
     }
 }
