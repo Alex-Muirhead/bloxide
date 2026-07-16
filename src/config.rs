@@ -9,7 +9,11 @@ use std::io::prelude::*;
 
 use yaml_rust::{Yaml, YamlLoader};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(frozen, get_all, eq, module = "bloxidepy")
+)]
 pub struct Config {
     pub R: f64,
     pub gamma: f64,
@@ -19,6 +23,21 @@ pub struct Config {
     pub T_e: f64,
     pub T_wall: f64,
     pub x: f64,
+}
+
+impl Config {
+    pub fn new(
+        R: f64,
+        gamma: f64,
+        Pr: f64,
+        p_e: f64,
+        u_e: f64,
+        T_e: f64,
+        T_wall: f64,
+        x: f64,
+    ) -> Self {
+        return Self { R, gamma, Pr, p_e, u_e, T_e, T_wall, x };
+    }
 }
 
 fn coerce_to_f64(node: Yaml) -> f64 {

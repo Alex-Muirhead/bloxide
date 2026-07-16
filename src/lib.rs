@@ -15,6 +15,8 @@ extern crate yaml_rust;
 
 pub mod config;
 pub mod parameters;
+#[cfg(feature = "python")]
+pub mod python;
 pub mod state;
 pub mod viscosity;
 use num_dual::{DualSVec64, first_derivative};

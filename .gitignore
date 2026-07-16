@@ -1,1 +1,5 @@
 /target
+
+# Add some python ignores
+__pycache__/
+*.so

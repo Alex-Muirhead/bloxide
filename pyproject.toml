@@ -1,0 +1,22 @@
+[project]
+name = "bloxidepy"
+version = "0.1.0"
+authors = [
+    { name = "Alex Muirhead", email = "a.muirhead@uq.net.au" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+python-source = "python"
+module-name = "bloxidepy._core"
+features = ["python"]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.15.0",
+]
