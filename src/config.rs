@@ -27,9 +27,11 @@ pub struct Config {
     pub R: f64,
     pub gamma: f64,
     pub Pr: f64,
+    // External
     pub p_e: f64,
     pub u_e: f64,
     pub T_e: f64,
+    // Wall
     pub T_wall: f64,
     pub x: f64,
 }

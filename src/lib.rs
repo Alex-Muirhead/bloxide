@@ -10,6 +10,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::ops::{Add, Mul};
+use std::path::Path;
 
 pub mod config;
 pub mod parameters;
@@ -271,7 +272,7 @@ pub fn solve_adiabatic_boundary_layer(pm: &Parameters) -> Vec<State<f64>> {
     integrate_through_bl(wall_state_final, pm)
 }
 
-pub fn write_dat_file(states: Vec<State<f64>>, filename: &str, pm: &Parameters) {
+pub fn write_dat_file(states: Vec<State<f64>>, filename: impl AsRef<Path>, pm: &Parameters) {
     let file = File::create(filename).expect("Unable to open for writing");
     let mut buf = BufWriter::new(file);
     buf.write_all(b"# y vel T rho p\n")

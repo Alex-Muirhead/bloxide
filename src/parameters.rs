@@ -9,10 +9,12 @@ use crate::viscosity::sutherland_mu;
 
 #[derive(Clone, Copy)]
 pub struct Parameters {
+    // Gas Model
     pub R: f64,
     pub gamma: f64,
     pub C_p: f64,
     pub Pr: f64,
+    // External
     pub p_e: f64,
     pub T_e: f64,
     pub rho_e: f64,
@@ -20,8 +22,10 @@ pub struct Parameters {
     pub mu_e: f64,
     pub u_e: f64,
     pub k_e: f64,
+    // Positions?
     pub xi: f64,
     pub x: f64,
+    // Wall values
     pub T_wall: f64,
     pub h_wall: f64,
 }

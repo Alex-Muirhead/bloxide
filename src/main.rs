@@ -10,22 +10,32 @@
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
 
-use std::env;
+use std::path::PathBuf;
+
+use clap::Parser;
 
 use bloxide::config::Config;
 use bloxide::parameters::Parameters;
 use bloxide::*;
 
-fn main() {
-    println!("bloxide: A compressible boundary layer analysis code.");
-    let mut config_file_name = "test.toml";
-    let args: Vec<String> = env::args().collect();
-    if args.len() > 1 {
-        config_file_name = args[1].as_str();
-    }
+#[derive(Parser)]
+#[command(name = "bloxide")]
+#[command(about = "A compressible boundary layer analysis code.", long_about = None)]
+struct Cli {
+    /// Path to a config file
+    config_path: PathBuf,
+}
 
-    let config = Config::from_file(config_file_name)
-        .unwrap_or_else(|err| panic!("Failed to load config file {}: {}", config_file_name, err));
+fn main() {
+    let cli = Cli::parse();
+    let config_file_name = cli.config_path;
+
+    let config = Config::from_file(&config_file_name).unwrap_or_else(|err| {
+        panic!(
+            "Failed to load config file {:?}: {}",
+            &config_file_name, err
+        )
+    });
     let pm = Parameters::new(&config);
     println!("{:#?}", config);
 
@@ -59,8 +69,8 @@ fn main() {
     let Twall = hwall / pm.C_p;
     println!("Adiabatic Wall Temp: {:5.5} K", Twall);
 
-    let filename = config_file_name.replace(".toml", ".dat");
-    write_dat_file(states, filename.as_str(), &pm);
+    let filename = config_file_name.with_extension("dat");
+    write_dat_file(states, filename, &pm);
 
     println!("Done.");
 }
